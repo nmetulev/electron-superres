@@ -13,11 +13,6 @@ try {
   console.log('Make sure to run "npm run build-csAddon" first');
 }
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
-}
-
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -32,7 +27,7 @@ const createWindow = () => {
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  // mainWindow.webContents.openDevTools();
 };
 
 // IPC Handlers for Super Resolution APIs
@@ -132,6 +127,10 @@ ipcMain.handle('app:getTempPath', () => {
     fs.mkdirSync(tempDir, { recursive: true });
   }
   return tempDir;
+});
+
+ipcMain.handle('app:getAppPath', () => {
+  return app.getAppPath();
 });
 
 // This method will be called when Electron has finished

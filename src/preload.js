@@ -26,5 +26,8 @@ contextBridge.exposeInMainWorld('superResolution', {
     selectImage: () => ipcRenderer.invoke('dialog:selectImage'),
     
     // Get the app's temp directory path
-    getTempPath: () => ipcRenderer.invoke('app:getTempPath')
+    getTempPath: () => ipcRenderer.invoke('app:getTempPath'),
+    
+    // Get the app's root directory path
+    getAppPath: () => ipcRenderer.invoke('app:getAppPath')
 });

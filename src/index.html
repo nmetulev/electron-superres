@@ -164,6 +164,33 @@
         
         // Check model status
         await checkModelStatus();
+        
+        // Load default image if model is ready
+        const readyState = await window.superResolution.getReadyState();
+        if (readyState === 'Ready') {
+          loadDefaultImage();
+        }
+      }
+      
+      async function loadDefaultImage() {
+        const appPath = await window.superResolution.getAppPath();
+        const defaultImagePath = `${appPath}\\image.jpg`;
+        
+        currentImagePath = defaultImagePath;
+        
+        // Load the original image
+        originalImage.src = `file://${defaultImagePath}`;
+        
+        // Wait for image to load then auto-enhance
+        originalImage.onload = () => {
+          originalInfo.textContent = `Original: ${originalImage.naturalWidth} × ${originalImage.naturalHeight}`;
+          processImage();
+        };
+        
+        originalImage.onerror = () => {
+          console.log('Default image not found, waiting for user selection');
+          currentImagePath = null;
+        };
       }
 
       async function checkModelStatus() {

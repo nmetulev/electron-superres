@@ -26,12 +26,8 @@
           
           <div class="scale-controls">
             <label for="scaleFactor">Scale Factor:</label>
-            <select id="scaleFactor">
-              <option value="1">1x (Sharpen only)</option>
-              <option value="2" selected>2x</option>
-              <option value="4">4x</option>
-              <option value="8">8x (Maximum)</option>
-            </select>
+            <input type="range" id="scaleFactor" min="1" max="8" value="2" step="1" />
+            <span id="scaleValue" class="scale-value">2x</span>
           </div>
 
           <button id="processBtn" class="btn btn-success" disabled>
@@ -39,33 +35,45 @@
           </button>
         </div>
 
-        <div class="image-comparison">
-          <div class="image-panel">
-            <h3>Original Image</h3>
-            <div class="image-container" id="originalContainer">
-              <div class="placeholder">
-                <span>No image selected</span>
-                <small>Click "Select Image" to choose a file</small>
-              </div>
-              <img id="originalImage" style="display: none;" />
+        <div class="image-comparison-slider">
+          <div class="comparison-container" id="comparisonContainer">
+            <div class="placeholder" id="mainPlaceholder">
+              <span>No image selected</span>
+              <small>Click "Select Image" to choose a file</small>
             </div>
-            <div class="image-info" id="originalInfo"></div>
+            
+            <div class="processing" id="processingIndicator" style="display: none;">
+              <div class="spinner"></div>
+              <span>Processing with NPU...</span>
+            </div>
+            
+            <div class="comparison-wrapper" id="comparisonWrapper" style="display: none;">
+              <!-- Enhanced image (background) -->
+              <img id="enhancedImage" class="comparison-image" />
+              
+              <!-- Original image (foreground, clipped) -->
+              <div class="comparison-overlay" id="comparisonOverlay">
+                <img id="originalImage" class="comparison-image" />
+              </div>
+              
+              <!-- Slider handle -->
+              <div class="comparison-slider" id="comparisonSlider">
+                <div class="slider-line"></div>
+                <div class="slider-handle">
+                  <span class="slider-arrow left">◀</span>
+                  <span class="slider-arrow right">▶</span>
+                </div>
+              </div>
+              
+              <!-- Labels -->
+              <div class="comparison-label label-original">Original</div>
+              <div class="comparison-label label-enhanced">Enhanced</div>
+            </div>
           </div>
-
-          <div class="image-panel">
-            <h3>Enhanced Image</h3>
-            <div class="image-container" id="enhancedContainer">
-              <div class="placeholder" id="enhancedPlaceholder">
-                <span>No enhanced image yet</span>
-                <small>Select an image and click "Enhance"</small>
-              </div>
-              <div class="processing" id="processingIndicator" style="display: none;">
-                <div class="spinner"></div>
-                <span>Processing with NPU...</span>
-              </div>
-              <img id="enhancedImage" style="display: none;" />
-            </div>
-            <div class="image-info" id="enhancedInfo"></div>
+          
+          <div class="image-info-bar">
+            <span id="originalInfo"></span>
+            <span id="enhancedInfo"></span>
           </div>
         </div>
 
@@ -90,13 +98,54 @@
       const originalInfo = document.getElementById('originalInfo');
       const enhancedInfo = document.getElementById('enhancedInfo');
       const processingIndicator = document.getElementById('processingIndicator');
-      const enhancedPlaceholder = document.getElementById('enhancedPlaceholder');
+      const mainPlaceholder = document.getElementById('mainPlaceholder');
       const resultMessage = document.getElementById('resultMessage');
-      const originalContainer = document.getElementById('originalContainer');
-      const enhancedContainer = document.getElementById('enhancedContainer');
+      const comparisonWrapper = document.getElementById('comparisonWrapper');
+      const comparisonOverlay = document.getElementById('comparisonOverlay');
+      const comparisonSlider = document.getElementById('comparisonSlider');
+      const comparisonContainer = document.getElementById('comparisonContainer');
 
       let currentImagePath = null;
       let tempPath = null;
+      let isDragging = false;
+      const scaleValue = document.getElementById('scaleValue');
+
+      // Comparison slider functionality
+      function setSliderPosition(percent) {
+        comparisonOverlay.style.width = `${percent}%`;
+        comparisonSlider.style.left = `${percent}%`;
+      }
+
+      function handleSliderMove(e) {
+        if (!isDragging) return;
+        const rect = comparisonContainer.getBoundingClientRect();
+        const x = (e.clientX || e.touches[0].clientX) - rect.left;
+        const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+        setSliderPosition(percent);
+      }
+
+      comparisonSlider.addEventListener('mousedown', () => isDragging = true);
+      comparisonSlider.addEventListener('touchstart', () => isDragging = true);
+      document.addEventListener('mouseup', () => isDragging = false);
+      document.addEventListener('touchend', () => isDragging = false);
+      document.addEventListener('mousemove', handleSliderMove);
+      document.addEventListener('touchmove', handleSliderMove);
+
+      // Also allow clicking anywhere on the comparison to move slider
+      comparisonContainer.addEventListener('click', (e) => {
+        if (comparisonWrapper.style.display !== 'none') {
+          const rect = comparisonContainer.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+          setSliderPosition(percent);
+        }
+      });
+
+      // Update scale value display when slider changes
+      scaleFactor.addEventListener('input', () => {
+        const val = scaleFactor.value;
+        scaleValue.textContent = val === '1' ? '1x (Sharpen)' : `${val}x`;
+      });
 
       // Initialize the app
       async function init() {
@@ -197,22 +246,28 @@
         if (filePath) {
           currentImagePath = filePath;
           
-          // Display the original image
+          // Hide comparison, show placeholder with loading state
+          comparisonWrapper.style.display = 'none';
+          mainPlaceholder.innerHTML = '<span>Loading image...</span>';
+          mainPlaceholder.style.display = 'flex';
+          
+          // Load the original image
           originalImage.src = `file://${filePath}`;
-          originalImage.style.display = 'block';
-          originalContainer.querySelector('.placeholder').style.display = 'none';
           
           // Wait for image to load to get dimensions
           originalImage.onload = () => {
-            originalInfo.textContent = `${originalImage.naturalWidth} × ${originalImage.naturalHeight} pixels`;
+            originalInfo.textContent = `Original: ${originalImage.naturalWidth} × ${originalImage.naturalHeight}`;
+            mainPlaceholder.innerHTML = `
+              <span>Image loaded</span>
+              <small>${originalImage.naturalWidth} × ${originalImage.naturalHeight} pixels</small>
+              <small>Click "Enhance Image" to upscale</small>
+            `;
           };
           
           // Enable process button
           processBtn.disabled = false;
           
-          // Reset enhanced image
-          enhancedImage.style.display = 'none';
-          enhancedPlaceholder.style.display = 'flex';
+          // Reset enhanced info
           enhancedInfo.textContent = '';
           resultMessage.textContent = '';
         }
@@ -225,8 +280,8 @@
         selectImageBtn.disabled = true;
         
         // Show processing indicator
-        enhancedPlaceholder.style.display = 'none';
-        enhancedImage.style.display = 'none';
+        mainPlaceholder.style.display = 'none';
+        comparisonWrapper.style.display = 'none';
         processingIndicator.style.display = 'flex';
         resultMessage.textContent = '';
         
@@ -248,7 +303,8 @@
           
           // Handle null/undefined result
           if (!result) {
-            enhancedPlaceholder.style.display = 'flex';
+            mainPlaceholder.style.display = 'flex';
+            mainPlaceholder.innerHTML = '<span>Error: No response from image scaler</span>';
             resultMessage.textContent = 'Error: No response from image scaler';
             resultMessage.className = 'result-message error';
             processBtn.disabled = false;
@@ -257,21 +313,33 @@
           }
           
           if (result.success) {
-            // Display the enhanced image
+            // Load enhanced image and show comparison slider
             enhancedImage.src = `file://${outputPath}?t=${timestamp}`;
-            enhancedImage.style.display = 'block';
-            enhancedInfo.textContent = `${result.scaledWidth} × ${result.scaledHeight} pixels`;
+            
+            enhancedImage.onload = () => {
+              // Show the comparison wrapper
+              comparisonWrapper.style.display = 'block';
+              mainPlaceholder.style.display = 'none';
+              
+              // Reset slider to middle
+              setSliderPosition(50);
+              
+              // Update info
+              enhancedInfo.textContent = `Enhanced: ${result.scaledWidth} × ${result.scaledHeight}`;
+            };
             
             resultMessage.textContent = result.message;
             resultMessage.className = 'result-message success';
           } else {
-            enhancedPlaceholder.style.display = 'flex';
+            mainPlaceholder.style.display = 'flex';
+            mainPlaceholder.innerHTML = `<span>Error</span><small>${result.message}</small>`;
             resultMessage.textContent = `Error: ${result.message}`;
             resultMessage.className = 'result-message error';
           }
         } catch (error) {
           processingIndicator.style.display = 'none';
-          enhancedPlaceholder.style.display = 'flex';
+          mainPlaceholder.style.display = 'flex';
+          mainPlaceholder.innerHTML = `<span>Error</span><small>${error.message}</small>`;
           resultMessage.textContent = `Error: ${error.message}`;
           resultMessage.className = 'result-message error';
         }

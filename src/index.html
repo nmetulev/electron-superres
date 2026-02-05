@@ -109,7 +109,9 @@
 
       // Comparison slider functionality
       function setSliderPosition(percent) {
-        comparisonOverlay.style.width = `${percent}%`;
+        // Use clip-path to reveal/hide the original image
+        const clipRight = 100 - percent;
+        comparisonOverlay.style.clipPath = `inset(0 ${clipRight}% 0 0)`;
         comparisonSlider.style.left = `${percent}%`;
       }
 
@@ -323,11 +325,6 @@
               // Show the comparison wrapper
               comparisonWrapper.style.display = 'block';
               mainPlaceholder.style.display = 'none';
-              
-              // Make original image same display size as enhanced (for proper overlap)
-              // The original will be clipped by the overlay, not resized
-              originalImage.style.width = enhancedImage.offsetWidth + 'px';
-              originalImage.style.height = enhancedImage.offsetHeight + 'px';
               
               // Reset slider to middle
               setSliderPosition(50);

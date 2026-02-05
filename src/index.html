@@ -324,10 +324,10 @@
               comparisonWrapper.style.display = 'block';
               mainPlaceholder.style.display = 'none';
               
-              // Sync original image size to match enhanced image display size
-              const enhancedRect = enhancedImage.getBoundingClientRect();
-              originalImage.style.width = `${enhancedRect.width}px`;
-              originalImage.style.height = `${enhancedRect.height}px`;
+              // Make original image same display size as enhanced (for proper overlap)
+              // The original will be clipped by the overlay, not resized
+              originalImage.style.width = enhancedImage.offsetWidth + 'px';
+              originalImage.style.height = enhancedImage.offsetHeight + 'px';
               
               // Reset slider to middle
               setSliderPosition(50);

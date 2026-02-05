@@ -198,11 +198,10 @@ header h1 {
 
 .comparison-wrapper {
   position: relative;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
   user-select: none;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .comparison-image {
@@ -222,11 +221,10 @@ header h1 {
 }
 
 .comparison-overlay img {
-  position: absolute;
-  top: 0;
-  left: 0;
+  display: block;
   max-height: 500px;
   object-fit: contain;
+  /* Don't set width - let it match natural aspect ratio */
 }
 
 .comparison-slider {

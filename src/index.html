@@ -1,0 +1,264 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Image Super Resolution - Windows AI Demo</title>
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>🖼️ Image Super Resolution</h1>
+        <p class="subtitle">Powered by Windows AI APIs (NPU-accelerated)</p>
+      </header>
+
+      <div class="status-bar">
+        <span class="status-label">Model Status:</span>
+        <span id="modelStatus" class="status-value">Checking...</span>
+        <button id="initModelBtn" class="btn btn-small" style="display: none;">Initialize Model</button>
+      </div>
+
+      <main>
+        <div class="controls">
+          <button id="selectImageBtn" class="btn btn-primary" disabled>
+            📁 Select Image
+          </button>
+          
+          <div class="scale-controls">
+            <label for="scaleFactor">Scale Factor:</label>
+            <select id="scaleFactor">
+              <option value="1">1x (Sharpen only)</option>
+              <option value="2" selected>2x</option>
+              <option value="4">4x</option>
+              <option value="8">8x (Maximum)</option>
+            </select>
+          </div>
+
+          <button id="processBtn" class="btn btn-success" disabled>
+            ⚡ Enhance Image
+          </button>
+        </div>
+
+        <div class="image-comparison">
+          <div class="image-panel">
+            <h3>Original Image</h3>
+            <div class="image-container" id="originalContainer">
+              <div class="placeholder">
+                <span>No image selected</span>
+                <small>Click "Select Image" to choose a file</small>
+              </div>
+              <img id="originalImage" style="display: none;" />
+            </div>
+            <div class="image-info" id="originalInfo"></div>
+          </div>
+
+          <div class="image-panel">
+            <h3>Enhanced Image</h3>
+            <div class="image-container" id="enhancedContainer">
+              <div class="placeholder" id="enhancedPlaceholder">
+                <span>No enhanced image yet</span>
+                <small>Select an image and click "Enhance"</small>
+              </div>
+              <div class="processing" id="processingIndicator" style="display: none;">
+                <div class="spinner"></div>
+                <span>Processing with NPU...</span>
+              </div>
+              <img id="enhancedImage" style="display: none;" />
+            </div>
+            <div class="image-info" id="enhancedInfo"></div>
+          </div>
+        </div>
+
+        <div class="result-message" id="resultMessage"></div>
+      </main>
+
+      <footer>
+        <p>Built with Electron + Windows App SDK + winapp CLI</p>
+        <p class="note">Requires Windows 11 Copilot+ PC with NPU for hardware acceleration</p>
+      </footer>
+    </div>
+
+    <script>
+      // DOM Elements
+      const modelStatus = document.getElementById('modelStatus');
+      const initModelBtn = document.getElementById('initModelBtn');
+      const selectImageBtn = document.getElementById('selectImageBtn');
+      const processBtn = document.getElementById('processBtn');
+      const scaleFactor = document.getElementById('scaleFactor');
+      const originalImage = document.getElementById('originalImage');
+      const enhancedImage = document.getElementById('enhancedImage');
+      const originalInfo = document.getElementById('originalInfo');
+      const enhancedInfo = document.getElementById('enhancedInfo');
+      const processingIndicator = document.getElementById('processingIndicator');
+      const enhancedPlaceholder = document.getElementById('enhancedPlaceholder');
+      const resultMessage = document.getElementById('resultMessage');
+      const originalContainer = document.getElementById('originalContainer');
+      const enhancedContainer = document.getElementById('enhancedContainer');
+
+      let currentImagePath = null;
+      let tempPath = null;
+
+      // Initialize the app
+      async function init() {
+        // Get temp directory
+        tempPath = await window.superResolution.getTempPath();
+        
+        // Check model status
+        await checkModelStatus();
+      }
+
+      async function checkModelStatus() {
+        const readyState = await window.superResolution.getReadyState();
+        
+        if (readyState === 'Ready') {
+          modelStatus.textContent = '✅ Ready';
+          modelStatus.className = 'status-value ready';
+          selectImageBtn.disabled = false;
+          initModelBtn.style.display = 'none';
+          resultMessage.textContent = '';
+        } else if (readyState === 'NotReady') {
+          modelStatus.textContent = '⏳ Model needs initialization';
+          modelStatus.className = 'status-value not-ready';
+          initModelBtn.style.display = 'inline-block';
+          selectImageBtn.disabled = true;
+        } else if (readyState === 'NotSupportedOnCurrentSystem' || readyState.includes('NotSupported')) {
+          modelStatus.textContent = '❌ Not Supported on This Device';
+          modelStatus.className = 'status-value error';
+          selectImageBtn.disabled = true;
+          initModelBtn.style.display = 'none';
+          resultMessage.innerHTML = `
+            <strong>⚠️ NPU Required</strong><br>
+            Image Super Resolution requires a <strong>Copilot+ PC</strong> with a Neural Processing Unit (NPU).<br>
+            <small>This AI feature uses on-device machine learning that requires specialized hardware for acceleration.</small>
+          `;
+          resultMessage.className = 'result-message error';
+        } else if (readyState === 'DisabledByUser') {
+          modelStatus.textContent = '⚠️ AI Features Disabled';
+          modelStatus.className = 'status-value error';
+          selectImageBtn.disabled = true;
+          initModelBtn.style.display = 'none';
+          resultMessage.innerHTML = `
+            <strong>AI Features Disabled</strong><br>
+            Please enable AI features in Windows Settings:<br>
+            <small>Settings → Privacy & security → AI</small>
+          `;
+          resultMessage.className = 'result-message error';
+        } else {
+          modelStatus.textContent = `⚠️ ${readyState}`;
+          modelStatus.className = 'status-value error';
+          selectImageBtn.disabled = true;
+        }
+      }
+
+      initModelBtn.addEventListener('click', async () => {
+        initModelBtn.disabled = true;
+        modelStatus.textContent = '⏳ Initializing model...';
+        resultMessage.textContent = '';
+        
+        const result = await window.superResolution.ensureModelReady();
+        
+        if (result === 'Ready') {
+          await checkModelStatus();
+        } else {
+          // Check if error indicates NPU not available
+          if (result.includes('NPU') || result.includes('Copilot+') || result.includes('not support') || result.includes('hardware')) {
+            modelStatus.textContent = '❌ Not Supported on This Device';
+            modelStatus.className = 'status-value error';
+            initModelBtn.style.display = 'none';
+            resultMessage.innerHTML = `
+              <strong>⚠️ NPU Required</strong><br>
+              ${result.replace('Error: ', '')}<br>
+              <small>This AI feature uses on-device machine learning that requires a Copilot+ PC with specialized NPU hardware.</small>
+            `;
+            resultMessage.className = 'result-message error';
+          } else {
+            modelStatus.textContent = '❌ Initialization Failed';
+            modelStatus.className = 'status-value error';
+            resultMessage.textContent = result;
+            resultMessage.className = 'result-message error';
+            initModelBtn.disabled = false;
+          }
+        }
+      });
+
+      selectImageBtn.addEventListener('click', async () => {
+        const filePath = await window.superResolution.selectImage();
+        
+        if (filePath) {
+          currentImagePath = filePath;
+          
+          // Display the original image
+          originalImage.src = `file://${filePath}`;
+          originalImage.style.display = 'block';
+          originalContainer.querySelector('.placeholder').style.display = 'none';
+          
+          // Wait for image to load to get dimensions
+          originalImage.onload = () => {
+            originalInfo.textContent = `${originalImage.naturalWidth} × ${originalImage.naturalHeight} pixels`;
+          };
+          
+          // Enable process button
+          processBtn.disabled = false;
+          
+          // Reset enhanced image
+          enhancedImage.style.display = 'none';
+          enhancedPlaceholder.style.display = 'flex';
+          enhancedInfo.textContent = '';
+          resultMessage.textContent = '';
+        }
+      });
+
+      processBtn.addEventListener('click', async () => {
+        if (!currentImagePath) return;
+        
+        processBtn.disabled = true;
+        selectImageBtn.disabled = true;
+        
+        // Show processing indicator
+        enhancedPlaceholder.style.display = 'none';
+        enhancedImage.style.display = 'none';
+        processingIndicator.style.display = 'flex';
+        resultMessage.textContent = '';
+        
+        const scale = parseInt(scaleFactor.value);
+        const timestamp = Date.now();
+        const outputPath = `${tempPath}\\enhanced_${timestamp}.png`;
+        
+        try {
+          const result = await window.superResolution.scaleImage(
+            currentImagePath,
+            outputPath,
+            scale
+          );
+          
+          processingIndicator.style.display = 'none';
+          
+          if (result.success) {
+            // Display the enhanced image
+            enhancedImage.src = `file://${outputPath}?t=${timestamp}`;
+            enhancedImage.style.display = 'block';
+            enhancedInfo.textContent = `${result.scaledWidth} × ${result.scaledHeight} pixels`;
+            
+            resultMessage.textContent = result.message;
+            resultMessage.className = 'result-message success';
+          } else {
+            enhancedPlaceholder.style.display = 'flex';
+            resultMessage.textContent = `Error: ${result.message}`;
+            resultMessage.className = 'result-message error';
+          }
+        } catch (error) {
+          processingIndicator.style.display = 'none';
+          enhancedPlaceholder.style.display = 'flex';
+          resultMessage.textContent = `Error: ${error.message}`;
+          resultMessage.className = 'result-message error';
+        }
+        
+        processBtn.disabled = false;
+        selectImageBtn.disabled = false;
+      });
+
+      // Initialize on load
+      init();
+    </script>
+  </body>
+</html>

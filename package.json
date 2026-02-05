@@ -1,0 +1,41 @@
+{
+  "name": "electron-superres",
+  "productName": "electron-superres",
+  "version": "1.0.0",
+  "description": "Electron app demonstrating Image Super Resolution using Windows AI APIs",
+  "main": "src/index.js",
+  "private": true,
+  "scripts": {
+    "start": "electron-forge start -- --no-sandbox",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "publish": "electron-forge publish",
+    "lint": "echo \"No linting configured\"",
+    "build-csAddon": "dotnet publish ./csAddon/csAddon.csproj -c Release",
+    "clean-csAddon": "dotnet clean ./csAddon/csAddon.csproj",
+    "build": "npm run build-csAddon",
+    "postinstall": "winapp restore && winapp cert generate --if-exists skip && winapp node add-electron-debug-identity"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Nikola Metulev",
+    "email": "nmetulev@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "node-api-dotnet": "^0.9.19"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.1",
+    "@electron-forge/maker-deb": "^7.11.1",
+    "@electron-forge/maker-rpm": "^7.11.1",
+    "@electron-forge/maker-squirrel": "^7.11.1",
+    "@electron-forge/maker-zip": "^7.11.1",
+    "@electron-forge/plugin-auto-unpack-natives": "^7.11.1",
+    "@electron-forge/plugin-fuses": "^7.11.1",
+    "@electron/fuses": "^1.8.0",
+    "@microsoft/winappcli": "^0.1.10",
+    "electron": "40.1.0"
+  }
+}

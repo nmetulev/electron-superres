@@ -29,10 +29,6 @@
             <input type="range" id="scaleFactor" min="1" max="8" value="2" step="1" />
             <span id="scaleValue" class="scale-value">2x</span>
           </div>
-
-          <button id="processBtn" class="btn btn-success" disabled>
-            ⚡ Enhance Image
-          </button>
         </div>
 
         <div class="image-comparison-slider">
@@ -91,7 +87,6 @@
       const modelStatus = document.getElementById('modelStatus');
       const initModelBtn = document.getElementById('initModelBtn');
       const selectImageBtn = document.getElementById('selectImageBtn');
-      const processBtn = document.getElementById('processBtn');
       const scaleFactor = document.getElementById('scaleFactor');
       const originalImage = document.getElementById('originalImage');
       const enhancedImage = document.getElementById('enhancedImage');
@@ -108,6 +103,8 @@
       let currentImagePath = null;
       let tempPath = null;
       let isDragging = false;
+      let debounceTimer = null;
+      let isProcessing = false;
       const scaleValue = document.getElementById('scaleValue');
 
       // Comparison slider functionality
@@ -141,10 +138,21 @@
         }
       });
 
-      // Update scale value display when slider changes
+      // Debounced enhance function
+      function debounceEnhance(delay = 300) {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          if (currentImagePath && !isProcessing) {
+            processImage();
+          }
+        }, delay);
+      }
+
+      // Update scale value display when slider changes and trigger re-enhancement
       scaleFactor.addEventListener('input', () => {
         const val = scaleFactor.value;
         scaleValue.textContent = val === '1' ? '1x (Sharpen)' : `${val}x`;
+        debounceEnhance(500);
       });
 
       // Initialize the app
@@ -254,18 +262,12 @@
           // Load the original image
           originalImage.src = `file://${filePath}`;
           
-          // Wait for image to load to get dimensions
+          // Wait for image to load to get dimensions then auto-enhance
           originalImage.onload = () => {
             originalInfo.textContent = `Original: ${originalImage.naturalWidth} × ${originalImage.naturalHeight}`;
-            mainPlaceholder.innerHTML = `
-              <span>Image loaded</span>
-              <small>${originalImage.naturalWidth} × ${originalImage.naturalHeight} pixels</small>
-              <small>Click "Enhance Image" to upscale</small>
-            `;
+            // Auto-enhance after loading
+            processImage();
           };
-          
-          // Enable process button
-          processBtn.disabled = false;
           
           // Reset enhanced info
           enhancedInfo.textContent = '';
@@ -273,10 +275,11 @@
         }
       });
 
-      processBtn.addEventListener('click', async () => {
-        if (!currentImagePath) return;
+      // Process image function (called automatically)
+      async function processImage() {
+        if (!currentImagePath || isProcessing) return;
         
-        processBtn.disabled = true;
+        isProcessing = true;
         selectImageBtn.disabled = true;
         
         // Show processing indicator
@@ -307,7 +310,7 @@
             mainPlaceholder.innerHTML = '<span>Error: No response from image scaler</span>';
             resultMessage.textContent = 'Error: No response from image scaler';
             resultMessage.className = 'result-message error';
-            processBtn.disabled = false;
+            isProcessing = false;
             selectImageBtn.disabled = false;
             return;
           }
@@ -320,6 +323,11 @@
               // Show the comparison wrapper
               comparisonWrapper.style.display = 'block';
               mainPlaceholder.style.display = 'none';
+              
+              // Sync original image size to match enhanced image display size
+              const enhancedRect = enhancedImage.getBoundingClientRect();
+              originalImage.style.width = `${enhancedRect.width}px`;
+              originalImage.style.height = `${enhancedRect.height}px`;
               
               // Reset slider to middle
               setSliderPosition(50);
@@ -344,9 +352,9 @@
           resultMessage.className = 'result-message error';
         }
         
-        processBtn.disabled = false;
+        isProcessing = false;
         selectImageBtn.disabled = false;
-      });
+      }
 
       // Initialize on load
       init();

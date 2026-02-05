@@ -4,7 +4,7 @@
 
 A demo Electron application showcasing the **Image Super Resolution** AI APIs from the Windows App SDK. This app uses NPU-accelerated machine learning to upscale and sharpen images up to 8x their original resolution.
 
-![Demo Screenshot](docs/screenshot.png)
+<img width="1283" height="1228" alt="image" src="https://github.com/user-attachments/assets/c1a60533-11b4-4bee-a00b-4c16d5c29a43" />
 
 ## What This Demo Shows
 

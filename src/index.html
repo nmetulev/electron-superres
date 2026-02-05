@@ -109,6 +109,16 @@
 
       async function checkModelStatus() {
         const readyState = await window.superResolution.getReadyState();
+        console.log('Ready state:', readyState);
+        
+        // Handle null/undefined
+        if (!readyState || readyState === 'undefined' || readyState === 'Unknown') {
+          modelStatus.textContent = '⚠️ Unable to determine status';
+          modelStatus.className = 'status-value error';
+          selectImageBtn.disabled = true;
+          initModelBtn.style.display = 'inline-block';
+          return;
+        }
         
         if (readyState === 'Ready') {
           modelStatus.textContent = '✅ Ready';
@@ -121,7 +131,7 @@
           modelStatus.className = 'status-value not-ready';
           initModelBtn.style.display = 'inline-block';
           selectImageBtn.disabled = true;
-        } else if (readyState === 'NotSupportedOnCurrentSystem' || readyState.includes('NotSupported')) {
+        } else if (readyState === 'NotSupportedOnCurrentSystem' || (readyState && readyState.includes && readyState.includes('NotSupported'))) {
           modelStatus.textContent = '❌ Not Supported on This Device';
           modelStatus.className = 'status-value error';
           selectImageBtn.disabled = true;
@@ -224,6 +234,8 @@
         const timestamp = Date.now();
         const outputPath = `${tempPath}\\enhanced_${timestamp}.png`;
         
+        console.log('Processing image:', { currentImagePath, outputPath, scale });
+        
         try {
           const result = await window.superResolution.scaleImage(
             currentImagePath,
@@ -231,7 +243,18 @@
             scale
           );
           
+          console.log('Scale result:', result);
           processingIndicator.style.display = 'none';
+          
+          // Handle null/undefined result
+          if (!result) {
+            enhancedPlaceholder.style.display = 'flex';
+            resultMessage.textContent = 'Error: No response from image scaler';
+            resultMessage.className = 'result-message error';
+            processBtn.disabled = false;
+            selectImageBtn.disabled = false;
+            return;
+          }
           
           if (result.success) {
             // Display the enhanced image

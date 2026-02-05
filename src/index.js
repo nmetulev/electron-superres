@@ -49,8 +49,11 @@ ipcMain.handle('superres:isAvailable', async () => {
 ipcMain.handle('superres:getReadyState', async () => {
   if (!csAddon) return 'Addon not loaded';
   try {
-    return csAddon.Addon.getReadyState();
+    const result = csAddon.Addon.getReadyState();
+    console.log('getReadyState result:', result, typeof result);
+    return result || 'Unknown';
   } catch (error) {
+    console.error('getReadyState error:', error);
     return `Error: ${error.message}`;
   }
 });
@@ -58,8 +61,11 @@ ipcMain.handle('superres:getReadyState', async () => {
 ipcMain.handle('superres:ensureModelReady', async () => {
   if (!csAddon) return 'Addon not loaded';
   try {
-    return await csAddon.Addon.ensureModelReady();
+    const result = await csAddon.Addon.ensureModelReady();
+    console.log('ensureModelReady result:', result, typeof result);
+    return result || 'Unknown';
   } catch (error) {
+    console.error('ensureModelReady error:', error);
     return `Error: ${error.message}`;
   }
 });
@@ -69,8 +75,27 @@ ipcMain.handle('superres:scaleImage', async (event, inputPath, outputPath, scale
     return { success: false, message: 'Addon not loaded' };
   }
   try {
-    return await csAddon.Addon.scaleImage(inputPath, outputPath, scaleFactor);
+    console.log('scaleImage called:', { inputPath, outputPath, scaleFactor });
+    const result = await csAddon.Addon.scaleImage(inputPath, outputPath, scaleFactor);
+    console.log('scaleImage result:', JSON.stringify(result, null, 2));
+    
+    // Ensure we return a proper object even if result is weird
+    if (!result) {
+      return { success: false, message: 'No result returned from addon' };
+    }
+    
+    // Handle case where result might be a proxy object
+    return {
+      success: result.success ?? false,
+      message: result.message ?? 'Unknown error',
+      outputPath: result.outputPath ?? '',
+      originalWidth: result.originalWidth ?? 0,
+      originalHeight: result.originalHeight ?? 0,
+      scaledWidth: result.scaledWidth ?? 0,
+      scaledHeight: result.scaledHeight ?? 0
+    };
   } catch (error) {
+    console.error('scaleImage error:', error);
     return { success: false, message: error.message };
   }
 });
